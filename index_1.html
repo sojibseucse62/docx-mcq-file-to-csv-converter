@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCQ Document to CSV Converter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <script>
+        // Gemini API configuration
+        var GEMINI_API_KEY = 'AIzaSyCHKOVqFLg5NsoTaIc7kGndTArTwQoYFR8';
+        var GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .upload-section {
+            background: #f7f9fc;
+            border: 2px dashed #cbd5e0;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .upload-section.active {
+            border-color: #48bb78;
+            background: #f0fff4;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-label {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .file-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e6fffa;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .preview-section {
+            margin-top: 30px;
+            display: none;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            text-align: left;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 30px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        .btn-primary {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #4299e1;
+            color: white;
+        }
+
+        .processing {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error-message {
+            background: #fed7d7;
+            color: #c53030;
+        }
+
+        .success-message {
+            background: #c6f6d5;
+            color: #2f855a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>MCQ Document to CSV Converter</h1>
+            <p>Upload your document containing multiple choice questions</p>
+        </div>
+
+        <div class="content">
+            <div class="upload-section" id="uploadSection">
+                <input type="file" id="fileInput" class="file-input" accept=".txt,.docx">
+                <label for="fileInput" class="file-label">Choose Document File</label>
+                <p style="margin-top: 15px; color: #718096;">Supported: TXT, DOCX</p>
+                <div class="file-info" id="fileInfo"></div>
+            </div>
+
+            <div class="processing" id="processing">
+                <p>Processing your document...</p>
+                <p id="processingStatus" style="color: #667eea; margin-top: 10px;"></p>
+            </div>
+
+            <div class="message error-message" id="errorMessage"></div>
+            <div class="message success-message" id="successMessage"></div>
+
+            <div class="stats-grid" id="statsGrid" style="display: none;">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalQuestions">0</div>
+                    <div>Total Questions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="questionsWithRef">0</div>
+                    <div>With References</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="validQuestions">0</div>
+                    <div>Valid Questions</div>
+                </div>
+            </div>
+
+            <div class="preview-section" id="previewSection">
+                <h2>Preview</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Question</th>
+                            <th>Answer</th>
+                            <th>Reference</th>
+                        </tr>
+                    </thead>
+                    <tbody id="previewBody"></tbody>
+                </table>
+            </div>
+
+            <div style="text-align: center; margin-top: 30px; display: none;" id="actionButtons">
+                <button class="btn btn-primary" id="downloadBtn">Download CSV</button>
+                <button class="btn btn-secondary" id="copyBtn">Copy to Clipboard</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        var parsedQuestions = [];
+        var csvContent = '';
+
+        // Event listener
+        document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+        document.getElementById('downloadBtn').addEventListener('click', downloadCSV);
+        document.getElementById('copyBtn').addEventListener('click', copyToClipboard);
+
+        // Main file handler
+        async function handleFileUpload(event) {
+            var file = event.target.files[0];
+            if (!file) return;
+
+            showFileInfo(file);
+            showProcessing();
+            updateProcessingStatus('Reading file...');
+
+            try {
+                // Get text - this will also process equations if detected
+                var text = await getTextFromFile(file);
+                
+                updateProcessingStatus('Parsing questions...');
+                parsedQuestions = parseQuestions(text);
+                
+                console.log('Questions found:', parsedQuestions.length);
+                
+                // Log first few questions for debugging
+                if (parsedQuestions.length > 0) {
+                    console.log('Sample questions:');
+                    for (var i = 0; i < Math.min(3, parsedQuestions.length); i++) {
+                        console.log('Q' + (i+1) + ' Title:', parsedQuestions[i].title);
+                        console.log('Q' + (i+1) + ' Reference:', parsedQuestions[i].attributes);
+                        console.log('Q' + (i+1) + ' Correct Answer:', parsedQuestions[i].correct_answer);
+                    }
+                }
+                
+                if (parsedQuestions.length === 0) {
+                    console.error('No questions could be parsed from the text');
+                    throw new Error('No questions found. Please check if the document contains numbered questions');
+                }
+
+                displayResults();
+                
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        // Check if questions need equation processing
+        function needsEquationProcessing(questions) {
+            for (var i = 0; i < questions.length; i++) {
+                var q = questions[i];
+                // Check for common equation indicators
+                if (containsEquationIndicators(q.title) || 
+                    containsEquationIndicators(q.options_1_answer) ||
+                    containsEquationIndicators(q.options_2_answer) ||
+                    containsEquationIndicators(q.options_3_answer) ||
+                    containsEquationIndicators(q.options_4_answer)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Check if text contains equation indicators
+        function containsEquationIndicators(text) {
+            if (!text) return false;
+            
+            // More comprehensive equation indicators
+            var indicators = [
+                '^', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹', '⁰',  // Superscripts
+                '₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉',  // Subscripts
+                '√', '∛', '∜',  // Roots
+                '∑', '∫', '∏', '∂',  // Calculus
+                '∞', 'π', 'α', 'β', 'γ', 'δ', 'θ', 'λ', 'μ', 'σ', 'φ', 'ω',  // Greek letters
+                '≤', '≥', '≠', '≈', '±', '∓',  // Comparison
+                '×', '÷', '·',  // Operations
+                '∈', '∉', '⊂', '⊃', '∪', '∩',  // Set theory
+                '→', '←', '↔', '⇒', '⇐', '⇔'  // Arrows
+            ];
+            
+            for (var i = 0; i < indicators.length; i++) {
+                if (text.indexOf(indicators[i]) !== -1) {
+                    console.log('Found equation indicator: ' + indicators[i]);
+                    return true;
+                }
+            }
+            
+            // Check for patterns like x2, y3, a1 (likely meant to be superscripts/subscripts)
+            if (/[a-zA-Z][0-9]+/.test(text)) {
+                console.log('Found letter-number pattern suggesting equations');
+                return true;
+            }
+            
+            // Check for fraction patterns
+            if (/\d+\/\d+/.test(text)) {
+                console.log('Found fraction pattern');
+                return true;
+            }
+            
+            // Check for common math terms in Bengali
+            var mathTerms = ['যোগফল', 'বিয়োগফল', 'গুণফল', 'ভাগফল', 'বর্গ', 'বর্গমূল', 'ঘন', 'ঘনমূল', 'সমীকরণ'];
+            for (var j = 0; j < mathTerms.length; j++) {
+                if (text.indexOf(mathTerms[j]) !== -1) {
+                    console.log('Found math term: ' + mathTerms[j]);
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+
+        // Process questions with Gemini for equation conversion
+        async function processQuestionsWithGemini(questions) {
+            var processedQuestions = [];
+            
+            // Process in batches to avoid API limits
+            var batchSize = 10;
+            
+            for (var i = 0; i < questions.length; i += batchSize) {
+                var batch = questions.slice(i, Math.min(i + batchSize, questions.length));
+                updateProcessingStatus('Processing equations: ' + i + '/' + questions.length + ' questions...');
+                
+                for (var j = 0; j < batch.length; j++) {
+                    var q = batch[j];
+                    
+                    // Process question title
+                    if (containsEquationIndicators(q.title)) {
+                        q.title = await convertToKatex(q.title);
+                    }
+                    
+                    // Process options
+                    if (containsEquationIndicators(q.options_1_answer)) {
+                        q.options_1_answer = await convertToKatex(q.options_1_answer);
+                    }
+                    if (containsEquationIndicators(q.options_2_answer)) {
+                        q.options_2_answer = await convertToKatex(q.options_2_answer);
+                    }
+                    if (containsEquationIndicators(q.options_3_answer)) {
+                        q.options_3_answer = await convertToKatex(q.options_3_answer);
+                    }
+                    if (containsEquationIndicators(q.options_4_answer)) {
+                        q.options_4_answer = await convertToKatex(q.options_4_answer);
+                    }
+                    
+                    processedQuestions.push(q);
+                }
+                
+                // Small delay between batches
+                if (i + batchSize < questions.length) {
+                    await new Promise(function(resolve) { setTimeout(resolve, 500); });
+                }
+            }
+            
+            return processedQuestions;
+        }
+
+        // Convert text with equations to KaTeX format
+        async function convertToKatex(text) {
+            if (!text) return text;
+            
+            try {
+                var prompt = 'Convert mathematical expressions in this text to KaTeX format (wrap in $). ' +
+                            'Keep Bengali text and other content unchanged. ' +
+                            'Examples: x² becomes $x^2$, √16 becomes $\\sqrt{16}$, 1/2 becomes $\\frac{1}{2}$. ' +
+                            'Text: ' + text;
+                
+                var requestBody = {
+                    contents: [{
+                        parts: [{
+                            text: prompt
+                        }]
+                    }]
+                };
+                
+                var response = await fetch(GEMINI_API_URL + '?key=' + GEMINI_API_KEY, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                if (!response.ok) {
+                    return text;
+                }
+                
+                var data = await response.json();
+                
+                if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                    return data.candidates[0].content.parts[0].text;
+                }
+                
+                return text;
+                
+            } catch (error) {
+                console.log('Error converting to KaTeX: ' + error.message);
+                return text;
+            }
+        }
+
+        // Update processing status
+        function updateProcessingStatus(message) {
+            var statusElem = document.getElementById('processingStatus');
+            if (statusElem) {
+                statusElem.textContent = message;
+            }
+        }
+
+        // Get text from file
+        async function getTextFromFile(file) {
+            if (file.name.endsWith('.txt')) {
+                return await file.text();
+            } else if (file.name.endsWith('.docx')) {
+                var arrayBuffer = await file.arrayBuffer();
+                
+                // First extract raw text
+                var result = await mammoth.extractRawText({arrayBuffer: arrayBuffer});
+                var text = result.value;
+                
+                // Log for debugging
+                console.log('Extracted text length:', text.length);
+                console.log('First 1000 characters:', text.substring(0, 1000));
+                
+                // Check if we have content
+                if (!text || text.length === 0) {
+                    throw new Error('Could not extract text from DOCX file');
+                }
+                
+                // Check for equation indicators and process with Gemini if needed
+                if (containsEquationIndicators(text)) {
+                    console.log('Equations detected in document, processing with Gemini AI...');
+                    text = await processFullTextWithGemini(text);
+                }
+                
+                return text;
+            }
+            throw new Error('Unsupported file type');
+        }
+
+        // Process entire text with Gemini for equation conversion
+        async function processFullTextWithGemini(text) {
+            try {
+                updateProcessingStatus('Converting equations to KaTeX format...');
+                
+                var prompt = 'Convert ALL mathematical expressions and equations in the following text to KaTeX format. ' +
+                            'Wrap each equation in dollar signs ($). ' +
+                            'Important conversions: ' +
+                            '- Superscripts like x² or x2 should become $x^2$ ' +
+                            '- Fractions like 1/2 should become $\\frac{1}{2}$ ' +
+                            '- Square roots like √16 should become $\\sqrt{16}$ ' +
+                            '- Keep all Bengali text exactly as is ' +
+                            '- Keep all brackets [] unchanged ' +
+                            '- Do not add any explanations, just return the converted text\n\n' + 
+                            text;
+                
+                var requestBody = {
+                    contents: [{
+                        parts: [{
+                            text: prompt
+                        }]
+                    }],
+                    generationConfig: {
+                        temperature: 0.1,
+                        maxOutputTokens: 8192
+                    }
+                };
+                
+                var response = await fetch(GEMINI_API_URL + '?key=' + GEMINI_API_KEY, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                if (!response.ok) {
+                    console.log('Gemini API error, using original text');
+                    return text;
+                }
+                
+                var data = await response.json();
+                
+                if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                    var processedText = data.candidates[0].content.parts[0].text;
+                    console.log('Successfully processed equations with Gemini AI');
+                    return processedText;
+                }
+                
+                return text;
+                
+            } catch (error) {
+                console.log('Error processing with Gemini: ' + error.message);
+                return text;
+            }
+        }
+
+        // Process text with Gemini AI to convert equations to KaTeX
+        async function processWithGemini(text) {
+            try {
+                var prompt = 'Convert all mathematical equations in the following text to KaTeX format wrapped in dollar signs ($). ' +
+                            'Keep all other text exactly as is. Do not add any explanations. ' +
+                            'For example: x² should become $x^2$, fractions like 1/2 should become $\\frac{1}{2}$. ' +
+                            'Here is the text:\n\n' + text;
+                
+                var requestBody = {
+                    contents: [{
+                        parts: [{
+                            text: prompt
+                        }]
+                    }]
+                };
+                
+                var response = await fetch(GEMINI_API_URL + '?key=' + GEMINI_API_KEY, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                if (!response.ok) {
+                    console.log('Gemini API error, using original text');
+                    return text;
+                }
+                
+                var data = await response.json();
+                
+                if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                    var processedText = data.candidates[0].content.parts[0].text;
+                    console.log('Successfully processed with Gemini AI');
+                    return processedText;
+                }
+                
+                return text;
+                
+            } catch (error) {
+                console.log('Error processing with Gemini: ' + error.message);
+                return text;
+            }
+        }
+
+        // Parse questions from text - with passage support
+        function parseQuestions(text) {
+            var questions = [];
+            
+            // Clean text
+            text = text.replace(/\r\n/g, '\n');
+            text = text.replace(/\r/g, '\n');
+            text = text.replace(/\t/g, ' ');
+            
+            console.log('Starting to parse questions from text of length:', text.length);
+            
+            // First, identify all passages and their associated questions
+            var passages = findPassages(text);
+            console.log('Found ' + passages.length + ' passages');
+            
+            // Now parse questions line by line
+            var lines = text.split('\n');
+            console.log('Total lines:', lines.length);
+            
+            var currentQ = null;
+            var optionText = '';
+            var questionCount = 0;
+            
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i].trim();
+                if (!line) continue;
+                
+                // Check for question number
+                var isQuestion = false;
+                var questionNum = '';
+                var questionText = '';
+                
+                var patterns = [
+                    /^([০-৯]+)[.\।]\s*(.+)/,
+                    /^([0-9]+)[.\।]\s*(.+)/,
+                    /^([০-৯]+)\)\s*(.+)/,
+                    /^([0-9]+)\)\s*(.+)/
+                ];
+                
+                for (var p = 0; p < patterns.length; p++) {
+                    var match = line.match(patterns[p]);
+                    if (match) {
+                        isQuestion = true;
+                        questionNum = match[1];
+                        questionText = match[2];
+                        break;
+                    }
+                }
+                
+                if (isQuestion) {
+                    questionCount++;
+                    console.log('Found question ' + questionNum + ':', questionText.substring(0, 50));
+                    
+                    // Save previous question
+                    if (currentQ && (currentQ.title || optionText)) {
+                        parseOptions(optionText, currentQ);
+                        if (currentQ.title) {
+                            questions.push(currentQ);
+                        }
+                    }
+                    
+                    // Extract reference from question text
+                    var reference = extractReference(questionText);
+                    questionText = reference.text;
+                    var refValue = reference.ref;
+                    
+                    // Check if this question has a passage
+                    var passageData = getPassageForQuestion(questionNum, passages);
+                    if (passageData) {
+                        // Add passage text to question
+                        questionText = passageData.text + ' ' + questionText;
+                        console.log('Added passage to question ' + questionNum);
+                        
+                        // If passage has a reference and question doesn't, use passage reference
+                        if (!refValue && passageData.reference) {
+                            refValue = passageData.reference;
+                            console.log('Using passage reference for question ' + questionNum + ':', refValue);
+                        }
+                    }
+                    
+                    // Create new question
+                    currentQ = createEmptyQuestion();
+                    currentQ.title = questionText;
+                    currentQ.attributes = refValue;
+                    optionText = '';
+                    
+                } else if (currentQ) {
+                    // Check if this line contains Roman numerals
+                    var hasRomanNumerals = /^(i+v?|v?i+|i?x|xi+)\s*[.\)]/i.test(line);
+                    
+                    // Check if line asks "নিচের কোনটি সঠিক"
+                    var isWhichCorrect = line.indexOf('নিচের কোনটি সঠিক') !== -1 || 
+                                        line.indexOf('কোনটি সঠিক') !== -1;
+                    
+                    if (hasRomanNumerals || isWhichCorrect) {
+                        // Add to question title
+                        currentQ.title = currentQ.title + ' ' + line;
+                    } else if (line.indexOf('(ক)') !== -1 || line.indexOf('(খ)') !== -1 || 
+                              line.indexOf('(a)') !== -1 || line.indexOf('(b)') !== -1) {
+                        // Options line
+                        optionText = optionText + ' ' + line;
+                    } else {
+                        // Continuation
+                        optionText = optionText + ' ' + line;
+                    }
+                    
+                    // Check for answer
+                    if (line.indexOf('উত্তর') !== -1 || line.indexOf('Answer') !== -1) {
+                        parseOptions(optionText, currentQ);
+                        if (currentQ.title) {
+                            questions.push(currentQ);
+                        }
+                        currentQ = null;
+                        optionText = '';
+                    }
+                }
+            }
+            
+            // Add last question
+            if (currentQ && (currentQ.title || optionText)) {
+                parseOptions(optionText, currentQ);
+                if (currentQ.title) {
+                    questions.push(currentQ);
+                }
+            }
+            
+            console.log('Total questions parsed:', questions.length);
+            
+            if (questions.length === 0) {
+                console.log('Trying alternative parsing approach...');
+                questions = parseQuestionsAlternative(text);
+            }
+            
+            return questions;
+        }
+        
+        // Find all passages and their associated questions
+        function findPassages(text) {
+            var passages = [];
+            var lines = text.split('\n');
+            
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i].trim();
+                
+                // Check for passage indicators
+                if (line.indexOf('উদ্দীপক') !== -1 || line.indexOf('উদ্দিপক') !== -1 || 
+                    line.indexOf('Read the') !== -1 || line.indexOf('passage') !== -1) {
+                    
+                    // Check if this line mentions question numbers
+                    if (line.indexOf('প্রশ্নের') !== -1 || line.indexOf('প্রশ্ন') !== -1 || 
+                        line.indexOf('question') !== -1) {
+                        
+                        console.log('Found passage instruction at line ' + i + ':', line);
+                        
+                        // Extract question numbers
+                        var questionNums = [];
+                        
+                        // Extract all numbers from the line
+                        var bengaliNums = line.match(/[০-৯]+/g) || [];
+                        var englishNums = line.match(/[0-9]+/g) || [];
+                        
+                        questionNums = questionNums.concat(bengaliNums, englishNums);
+                        
+                        // Collect passage text (lines between instruction and first question)
+                        var passageText = '';
+                        var passageReference = '';
+                        var j = i + 1;
+                        
+                        while (j < lines.length) {
+                            var nextLine = lines[j].trim();
+                            
+                            // Stop if we hit a question number
+                            if (/^[০-৯0-9]+[.\।)]/.test(nextLine)) {
+                                break;
+                            }
+                            
+                            if (nextLine) {
+                                passageText = passageText + ' ' + nextLine;
+                            }
+                            j++;
+                        }
+                        
+                        // Extract reference from passage text if present
+                        if (passageText) {
+                            // Check for reference patterns in passage
+                            var refResult = extractReference(passageText);
+                            passageText = refResult.text;
+                            passageReference = refResult.ref;
+                        }
+                        
+                        if (passageText && questionNums.length > 0) {
+                            passages.push({
+                                text: passageText.trim(),
+                                questions: questionNums,
+                                reference: passageReference
+                            });
+                            
+                            console.log('Passage for questions', questionNums, ':', passageText.substring(0, 100));
+                            if (passageReference) {
+                                console.log('Passage reference:', passageReference);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return passages;
+        }
+        
+        // Get passage text and reference for a specific question number
+        function getPassageForQuestion(questionNum, passages) {
+            // Convert Bengali to English for comparison
+            var bengaliToEnglish = {
+                '০':'0', '১':'1', '২':'2', '৩':'3', '৪':'4',
+                '৫':'5', '৬':'6', '৭':'7', '৮':'8', '৯':'9'
+            };
+            
+            var qNumEn = questionNum;
+            for (var bn in bengaliToEnglish) {
+                qNumEn = qNumEn.replace(new RegExp(bn, 'g'), bengaliToEnglish[bn]);
+            }
+            
+            for (var i = 0; i < passages.length; i++) {
+                var passage = passages[i];
+                
+                for (var j = 0; j < passage.questions.length; j++) {
+                    var pqNum = passage.questions[j];
+                    var pqNumEn = pqNum;
+                    
+                    for (var bn2 in bengaliToEnglish) {
+                        pqNumEn = pqNumEn.replace(new RegExp(bn2, 'g'), bengaliToEnglish[bn2]);
+                    }
+                    
+                    if (qNumEn === pqNumEn) {
+                        return {
+                            text: passage.text,
+                            reference: passage.reference
+                        };
+                    }
+                }
+            }
+            
+            return null;
+        }
+        
+        // Extract reference from question text
+        function extractReference(text) {
+            var reference = '';
+            
+            // Pattern 1: ]reference]
+            var refPattern1 = text.match(/\]([^\]]+)\]\s*$/);
+            if (refPattern1) {
+                reference = refPattern1[1].trim();
+                text = text.replace(refPattern1[0], '').trim();
+            }
+            
+            // Pattern 2: [reference]
+            if (!reference) {
+                var refPattern2 = text.match(/\[([^\]]+)\]/);
+                if (refPattern2) {
+                    reference = refPattern2[1].trim();
+                    text = text.replace(refPattern2[0], '').trim();
+                }
+            }
+            
+            // Pattern 3: [reference without closing
+            if (!reference) {
+                var refPattern3 = text.match(/\[([^\[]+)$/);
+                if (refPattern3) {
+                    reference = refPattern3[1].trim();
+                    text = text.replace(refPattern3[0], '').trim();
+                }
+            }
+            
+            // Pattern 4: ]reference without closing
+            if (!reference) {
+                var refPattern4 = text.match(/\]([^\]]+)$/);
+                if (refPattern4) {
+                    reference = refPattern4[1].trim();
+                    text = text.replace(refPattern4[0], '').trim();
+                }
+            }
+            
+            // Clean question text
+            text = text.replace(/[-–—]\s*$/, '').trim();
+            
+            return {
+                text: text,
+                ref: reference
+            };
+        }
+        
+        // Alternative parsing approach for different formats
+        function parseQuestionsAlternative(text) {
+            var questions = [];
+            
+            // Try to split by question numbers in sequence
+            var parts = text.split(/(?=\n\s*[০-৯0-9]+[.\।)\s])/);
+            console.log('Alternative approach - parts found:', parts.length);
+            
+            for (var i = 0; i < parts.length; i++) {
+                var part = parts[i].trim();
+                if (!part) continue;
+                
+                // Check if this part starts with a number
+                var match = part.match(/^([০-৯0-9]+)[.\।)\s]\s*(.+)/s);
+                if (match) {
+                    var fullText = match[2];
+                    
+                    // Split into question and options
+                    var questionText = '';
+                    var optionText = '';
+                    
+                    // Find where options start
+                    var optionStart = fullText.search(/\(?\s*[কক]\s*\)?/);
+                    if (optionStart !== -1) {
+                        questionText = fullText.substring(0, optionStart).trim();
+                        optionText = fullText.substring(optionStart);
+                    } else {
+                        questionText = fullText;
+                    }
+                    
+                    // Extract reference
+                    var reference = '';
+                    var refMatch = questionText.match(/[\[\]].+[\[\]]/);
+                    if (refMatch) {
+                        reference = refMatch[0].replace(/[\[\]]/g, '').trim();
+                        questionText = questionText.replace(refMatch[0], '').trim();
+                    }
+                    
+                    // Clean question
+                    questionText = questionText.replace(/[-–—]\s*$/, '').trim();
+                    
+                    if (questionText) {
+                        var q = createEmptyQuestion();
+                        q.title = questionText;
+                        q.attributes = reference;
+                        
+                        if (optionText) {
+                            parseOptions(optionText, q);
+                        }
+                        
+                        questions.push(q);
+                    }
+                }
+            }
+            
+            console.log('Alternative approach found:', questions.length, 'questions');
+            return questions;
+        }
+
+        // Create empty question object
+        function createEmptyQuestion() {
+            return {
+                title: '',
+                image: '',
+                thumbnail: '',
+                video: '',
+                audio: '',
+                explanation: '',
+                explanation_image: '',
+                explanation_video: '',
+                explanation_audio: '',
+                options_1_answer: '',
+                options_1_is_correct: 'FALSE',
+                options_1_image: '',
+                options_1_audio: '',
+                options_1_video: '',
+                options_2_answer: '',
+                options_2_is_correct: 'FALSE',
+                options_2_image: '',
+                options_2_video: '',
+                options_2_audio: '',
+                options_3_answer: '',
+                options_3_is_correct: 'FALSE',
+                options_3_image: '',
+                options_3_video: '',
+                options_3_audio: '',
+                options_4_answer: '',
+                options_4_is_correct: 'FALSE',
+                options_4_image: '',
+                options_4_video: '',
+                options_4_audio: '',
+                correct_answer: '',
+                attributes: ''
+            };
+        }
+
+        // Parse options
+        function parseOptions(text, question) {
+            // Find option 1
+            var opt1 = findOption(text, 'ক', 'a');
+            if (opt1) question.options_1_answer = opt1;
+            
+            // Find option 2
+            var opt2 = findOption(text, 'খ', 'b');
+            if (opt2) question.options_2_answer = opt2;
+            
+            // Find option 3
+            var opt3 = findOption(text, 'গ', 'c');
+            if (opt3) question.options_3_answer = opt3;
+            
+            // Find option 4
+            var opt4 = findOption(text, 'ঘ', 'd');
+            if (opt4) question.options_4_answer = opt4;
+            
+            // Find correct answer
+            var answer = findAnswer(text);
+            if (answer) {
+                question.correct_answer = answer;
+                // Set is_correct flag
+                if (answer === 'ক') question.options_1_is_correct = 'TRUE';
+                if (answer === 'খ') question.options_2_is_correct = 'TRUE';
+                if (answer === 'গ') question.options_3_is_correct = 'TRUE';
+                if (answer === 'ঘ') question.options_4_is_correct = 'TRUE';
+            }
+        }
+
+        // Find option text
+        function findOption(text, bnKey, enKey) {
+            var patterns = [
+                '(' + bnKey + ')',
+                bnKey + ')',
+                '(' + enKey + ')',
+                enKey + ')'
+            ];
+            
+            for (var p = 0; p < patterns.length; p++) {
+                var idx = text.indexOf(patterns[p]);
+                if (idx !== -1) {
+                    var start = idx + patterns[p].length;
+                    var end = text.length;
+                    
+                    // Find next option or answer
+                    var nextIdx = text.length;
+                    var stops = ['(ক)', '(খ)', '(গ)', '(ঘ)', '(a)', '(b)', '(c)', '(d)', 'উত্তর'];
+                    for (var s = 0; s < stops.length; s++) {
+                        var stopIdx = text.indexOf(stops[s], start);
+                        if (stopIdx !== -1 && stopIdx < nextIdx) {
+                            nextIdx = stopIdx;
+                        }
+                    }
+                    
+                    return text.substring(start, nextIdx).trim();
+                }
+            }
+            return '';
+        }
+
+        // Find answer
+        function findAnswer(text) {
+            var patterns = ['উত্তর:', 'উত্তরঃ', 'Answer:'];
+            
+            for (var p = 0; p < patterns.length; p++) {
+                var idx = text.indexOf(patterns[p]);
+                if (idx !== -1) {
+                    var after = text.substring(idx + patterns[p].length).trim();
+                    var firstChar = after.charAt(0);
+                    
+                    // Map answer
+                    if (firstChar === 'ক' || firstChar === 'a') return 'ক';
+                    if (firstChar === 'খ' || firstChar === 'b') return 'খ';
+                    if (firstChar === 'গ' || firstChar === 'c') return 'গ';
+                    if (firstChar === 'ঘ' || firstChar === 'd') return 'ঘ';
+                }
+            }
+            return '';
+        }
+
+        // Display functions
+        function showFileInfo(file) {
+            var info = document.getElementById('fileInfo');
+            info.style.display = 'block';
+            info.innerHTML = 'File: ' + file.name + ' (' + (file.size/1024).toFixed(2) + ' KB)';
+            document.getElementById('uploadSection').className = 'upload-section active';
+        }
+
+        function showProcessing() {
+            document.getElementById('processing').style.display = 'block';
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('successMessage').style.display = 'none';
+        }
+
+        function showError(msg) {
+            document.getElementById('processing').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'block';
+            document.getElementById('errorMessage').textContent = 'Error: ' + msg;
+        }
+
+        function displayResults() {
+            document.getElementById('processing').style.display = 'none';
+            document.getElementById('successMessage').style.display = 'block';
+            document.getElementById('successMessage').textContent = 'Parsed ' + parsedQuestions.length + ' questions!';
+            
+            // Stats
+            document.getElementById('statsGrid').style.display = 'grid';
+            document.getElementById('totalQuestions').textContent = parsedQuestions.length;
+            
+            var withRef = 0;
+            var valid = 0;
+            for (var i = 0; i < parsedQuestions.length; i++) {
+                if (parsedQuestions[i].attributes) withRef++;
+                if (parsedQuestions[i].correct_answer) valid++;
+            }
+            document.getElementById('questionsWithRef').textContent = withRef;
+            document.getElementById('validQuestions').textContent = valid;
+            
+            // Preview
+            var tbody = document.getElementById('previewBody');
+            tbody.innerHTML = '';
+            var max = Math.min(10, parsedQuestions.length);
+            for (var j = 0; j < max; j++) {
+                var q = parsedQuestions[j];
+                var row = document.createElement('tr');
+                row.innerHTML = '<td>' + (j+1) + '</td>' +
+                    '<td>' + q.title + '</td>' +
+                    '<td>' + (q.correct_answer || 'N/A') + '</td>' +
+                    '<td>' + (q.attributes || '-') + '</td>';
+                tbody.appendChild(row);
+            }
+            document.getElementById('previewSection').style.display = 'block';
+            document.getElementById('actionButtons').style.display = 'block';
+            
+            generateCSV();
+        }
+
+        // Generate CSV
+        function generateCSV() {
+            var headers = [
+                'title', 'image', 'thumbnail', 'video', 'audio',
+                'explanation', 'explanation_image', 'explanation_video', 'explanation_audio',
+                'options_1_answer', 'options_1_is_correct', 'options_1_image', 'options_1_audio', 'options_1_video',
+                'options_2_answer', 'options_2_is_correct', 'options_2_image', 'options_2_video', 'options_2_audio',
+                'options_3_answer', 'options_3_is_correct', 'options_3_image', 'options_3_video', 'options_3_audio',
+                'options_4_answer', 'options_4_is_correct', 'options_4_image', 'options_4_video', 'options_4_audio',
+                'correct_answer', 'attributes'
+            ];
+            
+            csvContent = headers.join(',') + '\n';
+            
+            for (var i = 0; i < parsedQuestions.length; i++) {
+                var q = parsedQuestions[i];
+                var row = [];
+                
+                for (var j = 0; j < headers.length; j++) {
+                    var value = q[headers[j]] || '';
+                    // Quote if needed
+                    if (value.indexOf(',') !== -1 || value.indexOf('"') !== -1 || value.indexOf('\n') !== -1) {
+                        value = '"' + value.replace(/"/g, '""') + '"';
+                    }
+                    row.push(value);
+                }
+                
+                csvContent = csvContent + row.join(',') + '\n';
+            }
+        }
+
+        // Download CSV
+        function downloadCSV() {
+            var BOM = '\uFEFF';
+            var blob = new Blob([BOM + csvContent], {type: 'text/csv;charset=utf-8;'});
+            var link = document.createElement('a');
+            var url = URL.createObjectURL(blob);
+            link.href = url;
+            link.download = 'mcq_questions.csv';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Copy to clipboard
+        function copyToClipboard() {
+            navigator.clipboard.writeText(csvContent).then(function() {
+                alert('CSV copied to clipboard!');
+            });
+        }
+    </script>
+</body>
+</html>
