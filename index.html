@@ -1026,13 +1026,26 @@
         }
 
         // Find answer
-        function findAnswer(text) {
+                function findAnswer(text) {
             var patterns = ['উত্তর:', 'উত্তরঃ', 'Answer:'];
             
             for (var p = 0; p < patterns.length; p++) {
                 var idx = text.indexOf(patterns[p]);
                 if (idx !== -1) {
                     var after = text.substring(idx + patterns[p].length).trim();
+                    
+                    // Check for pattern like "(খ) ভূমিরূপবিদ্যা"
+                    var bracketMatch = after.match(/^\(([কখগঘabcd])\)/);
+                    if (bracketMatch) {
+                        var answerChar = bracketMatch[1];
+                        // Map to Bengali letters
+                        if (answerChar === 'ক' || answerChar === 'a') return 'ক';
+                        if (answerChar === 'খ' || answerChar === 'b') return 'খ';
+                        if (answerChar === 'গ' || answerChar === 'c') return 'গ';
+                        if (answerChar === 'ঘ' || answerChar === 'd') return 'ঘ';
+                    }
+                    
+                    // Check for simple pattern without brackets
                     var firstChar = after.charAt(0);
                     
                     // Map answer
