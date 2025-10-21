@@ -964,22 +964,22 @@
             };
         }
 
-        // Parse options
+    // Parse options
         function parseOptions(text, question) {
             // Find option 1
-            var opt1 = findOption(text, 'ক', 'a');
+            var opt1 = findOption(text, 'ক', 'a', 'A'); // <-- ADD 'A'
             if (opt1) question.options_1_answer = opt1;
             
             // Find option 2
-            var opt2 = findOption(text, 'খ', 'b');
+            var opt2 = findOption(text, 'খ', 'b', 'B'); // <-- ADD 'B'
             if (opt2) question.options_2_answer = opt2;
             
             // Find option 3
-            var opt3 = findOption(text, 'গ', 'c');
+            var opt3 = findOption(text, 'গ', 'c', 'C'); // <-- ADD 'C'
             if (opt3) question.options_3_answer = opt3;
             
             // Find option 4
-            var opt4 = findOption(text, 'ঘ', 'd');
+            var opt4 = findOption(text, 'ঘ', 'd', 'D'); // <-- ADD 'D'
             if (opt4) question.options_4_answer = opt4;
             
             // Find correct answer
@@ -994,13 +994,15 @@
             }
         }
 
-        // Find option text
-        function findOption(text, bnKey, enKey) {
+    // Find option text
+        function findOption(text, bnKey, enKey, enUpperKey) { // <-- ADD enUpperKey
             var patterns = [
                 '(' + bnKey + ')',
                 bnKey + ')',
                 '(' + enKey + ')',
-                enKey + ')'
+                enKey + ')',
+                '(' + enUpperKey + ')', // <-- ADD UPPERCASE BRACKET
+                enUpperKey + ')'        // <-- ADD UPPERCASE NO-BRACKET
             ];
             
             for (var p = 0; p < patterns.length; p++) {
@@ -1011,7 +1013,7 @@
                     
                     // Find next option or answer
                     var nextIdx = text.length;
-                    var stops = ['(ক)', '(খ)', '(গ)', '(ঘ)', '(a)', '(b)', '(c)', '(d)', 'উত্তর'];
+                    var stops = ['(ক)', '(খ)', '(গ)', '(ঘ)', '(a)', '(b)', '(c)', '(d)', '(A)', '(B)', '(C)', '(D)', 'উত্তর']; // <-- ADD UPPERCASE STOPS
                     for (var s = 0; s < stops.length; s++) {
                         var stopIdx = text.indexOf(stops[s], start);
                         if (stopIdx !== -1 && stopIdx < nextIdx) {
@@ -1026,7 +1028,7 @@
         }
 
         // Find answer
-                function findAnswer(text) {
+        function findAnswer(text) {
             var patterns = ['উত্তর:', 'উত্তরঃ', 'Answer:'];
             
             for (var p = 0; p < patterns.length; p++) {
@@ -1034,25 +1036,25 @@
                 if (idx !== -1) {
                     var after = text.substring(idx + patterns[p].length).trim();
                     
-                    // Check for pattern like "(খ) ভূমিরূপবিদ্যা"
-                    var bracketMatch = after.match(/^\(([কখগঘabcd])\)/);
+                    // Check for pattern like "(খ) ভূমিরূপবিদ্যা" or "(B) ... "
+                    var bracketMatch = after.match(/^\(([কখগঘabcdABCD])\)/); // <-- ADD ABCD
                     if (bracketMatch) {
                         var answerChar = bracketMatch[1];
-                        // Map to Bengali letters
-                        if (answerChar === 'ক' || answerChar === 'a') return 'ক';
-                        if (answerChar === 'খ' || answerChar === 'b') return 'খ';
-                        if (answerChar === 'গ' || answerChar === 'c') return 'গ';
-                        if (answerChar === 'ঘ' || answerChar === 'd') return 'ঘ';
+                        // Map to Bengali letters (handling both cases)
+                        if (answerChar === 'ক' || answerChar === 'a' || answerChar === 'A') return 'ক'; // <-- ADD 'A'
+                        if (answerChar === 'খ' || answerChar === 'b' || answerChar === 'B') return 'খ'; // <-- ADD 'B'
+                        if (answerChar === 'গ' || answerChar === 'c' || answerChar === 'C') return 'গ'; // <-- ADD 'C'
+                        if (answerChar === 'ঘ' || answerChar === 'd' || answerChar === 'D') return 'ঘ'; // <-- ADD 'D'
                     }
                     
                     // Check for simple pattern without brackets
                     var firstChar = after.charAt(0);
                     
                     // Map answer
-                    if (firstChar === 'ক' || firstChar === 'a') return 'ক';
-                    if (firstChar === 'খ' || firstChar === 'b') return 'খ';
-                    if (firstChar === 'গ' || firstChar === 'c') return 'গ';
-                    if (firstChar === 'ঘ' || firstChar === 'd') return 'ঘ';
+                    if (firstChar === 'ক' || firstChar === 'a' || firstChar === 'A') return 'ক'; // <-- ADD 'A'
+                    if (firstChar === 'খ' || firstChar === 'b' || firstChar === 'B') return 'খ'; // <-- ADD 'B'
+                    if (firstChar === 'গ' || firstChar === 'c' || firstChar === 'C') return 'গ'; // <-- ADD 'C'
+                    if (firstChar === 'ঘ' || firstChar === 'd' || firstChar === 'D') return 'ঘ'; // <-- ADD 'D'
                 }
             }
             return '';
